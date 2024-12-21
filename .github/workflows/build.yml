@@ -32,6 +32,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TITLE: "Release ${{ github.sha }}"
           RELEASE_NOTES: "Automated release"
+        with:
+          tag_name: "v${{ github.sha }}"
+          draft: false
+          prerelease: false
 
       - name: Upload release asset
         uses: actions/upload-artifact@v3
