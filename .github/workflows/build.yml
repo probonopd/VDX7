@@ -25,7 +25,11 @@ jobs:
           sed -i 's/USE_LV2=1/USE_LV2=1/' src/Makefile
           sed -i 's/USE_GTKMM=0/USE_GTKMM=0/' src/Makefile
           cd src && make && make install
-          
+
+      - name: Create zip file
+        run: |
+          zip -r vdx7.zip ~/.local/bin/vdx7 ~/.config/vdx7/vdx7.ram ~/.lv2/vdx7.lv2/vdx7.so ~/.lv2/vdx7.lv2/vdx7.ttl ~/.lv2/vdx7.lv2/manifest.ttl ~/.lv2/vdx7.lv2/vdx7.ram
+
       - name: Create release
         id: create-release
         uses: actions/create-release@v1
@@ -38,22 +42,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload release assets to release
+      - name: Upload release asset to release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ~/.local/bin/vdx7
-          asset_name: vdx7
-          asset_content_type: application/octet-stream
-
-      - name: Upload LV2 release assets to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ~/.lv2/vdx7.lv2
-          asset_name: vdx7.lv2
-          asset_content_type: application/octet-stream
+          asset_path: ./vdx7.zip
+          asset_name: vdx7.zip
+          asset_content_type: application/zip
