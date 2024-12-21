@@ -25,8 +25,9 @@ jobs:
           sed -i 's/USE_LV2=1/USE_LV2=1/' src/Makefile
           sed -i 's/USE_GTKMM=0/USE_GTKMM=0/' src/Makefile
           cd src && make && make install
-
+          
       - name: Create release
+        id: create-release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
