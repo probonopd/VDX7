@@ -1,0 +1,65 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libx11-dev libxpm-dev libsamplerate0-dev libjack-jackd2-dev lv2-dev
+
+      - name: Configure and build
+        run: |
+          sed -i 's/USE_NATIVE=1/USE_NATIVE=0/' Makefile
+          sed -i 's/USE_ARM=0/USE_ARM=0/' Makefile
+          sed -i 's/USE_LV2=1/USE_LV2=1/' Makefile
+          sed -i 's/USE_GTKMM=0/USE_GTKMM=0/' Makefile
+          make && make install
+
+      - name: Create release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TITLE: "Release ${{ github.sha }}"
+          RELEASE_NOTES: "Automated release"
+
+      - name: Upload release asset
+        uses: actions/upload-artifact@v3
+        with:
+          name: vdx7
+          path: ~/.local/bin/vdx7
+
+      - name: Upload LV2 release asset
+        uses: actions/upload-artifact@v3
+        with:
+          name: vdx7.lv2
+          path: ~/.lv2/vdx7.lv2
+
+      - name: Upload release assets to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ~/.local/bin/vdx7
+          asset_name: vdx7
+          asset_content_type: application/octet-stream
+
+      - name: Upload LV2 release assets to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ~/.lv2/vdx7.lv2
+          asset_name: vdx7.lv2
+          asset_content_type: application/octet-stream
