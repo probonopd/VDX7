@@ -5,6 +5,6 @@ Exec=vdx7
 Comment=VDX7
 Terminal=false
 PrefersNonDefaultGPU=false
-Icon=VDX7.png
+Icon=vdx7.png
 Type=Application
 Name[en_US]=VDX7

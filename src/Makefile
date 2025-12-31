@@ -41,9 +41,10 @@ VERSION=1.0
 BUILD=build$(shell date +%m%d%y-%H%M%S)
 
 ####### INSTALLATION #############
-INSTALLDIR= ~/.local/bin
+INSTALLDIR= ~/.local
 CONFIGDIR= ~/.config/vdx7
 INSTALLDIR_LV2= ~/.lv2/$(APP).lv2
+DESKTOPDIR= ~/Desktop
 
 ##################################
 ##################################
@@ -224,13 +225,21 @@ MKDIR_P ?= mkdir -p
 ############################ Misc ##############################
 ################################################################
 
-install: install-app install-lv2
+install: install-app install-lv2 install-desktop
 
 install-app:
-	@$(MKDIR_P) $(INSTALLDIR)
-	cp $(APP) $(INSTALLDIR)
+	@$(MKDIR_P) $(INSTALLDIR)/bin
+	cp $(APP) $(INSTALLDIR)/bin
 	@$(MKDIR_P) $(CONFIGDIR)
 	if ! test -f $(CONFIGDIR)/vdx7.ram ; then cp example.ram $(CONFIGDIR)/vdx7.ram ; fi
+
+install-desktop:
+	@$(MKDIR_P) -p ${INSTALLDIR}/share/icons/hicolor/128x128/apps
+	cp ../misc/${APP}.png ${INSTALLDIR}/share/icons/hicolor/128x128/apps/${APP}.png
+	if test -d ${DESKTOPDIR} ; then \
+		cp ../misc/${APP}.desktop ${DESKTOPDIR} ; \
+	fi
+
 
 install-lv2: $(MANIFEST) $(LV2_EXEC)
 	@$(MKDIR_P) $(INSTALLDIR_LV2)

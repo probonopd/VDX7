@@ -8,7 +8,7 @@ DESKTOP=~/Desktop
 APP=vdx7
 
 rm -f ${INSTALLDIR}/bin/${APP} 
-rm -f ${INSTALLDIR}/share/icons/hicolor/128x128/apps/VDX7.png
+rm -f ${INSTALLDIR}/share/icons/hicolor/128x128/apps/${APP}.png
 rm -rf ${CONFIGDIR}/${APP}
 rm -rf ${INSTALLDIR_LV2}/${APP}.lv2
-rm -rf ${DESKTOP}/VDX7.desktop
+rm -rf ${DESKTOP}/${APP}.desktop

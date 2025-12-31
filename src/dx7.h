@@ -93,7 +93,7 @@ struct DX7: public HD6303R {
 
 	// MIDI volume control through DAC
 	// Volume levels implemented in hardware as DAC reference voltages
-	uint8_t midiVolume = 7; // 0-7
+	uint8_t midiVolume = 7; // 0-7, bits reversed
 	const float midiVolTab[8] = { 0, 710/4790.0, 200/4790.0, 2590/4790.0,
 		100/4790.0, 1390/4790.0, 380/4790.0, 4790/4790.0 };
 	LP1 midiFilter; // 10hz analog lowpass smooths transitions
