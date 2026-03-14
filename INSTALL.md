@@ -1,7 +1,7 @@
 # Install
 
 Building is straightforward. The only dependencies for building the app are the
-dev packages for X11 (including xpm), jack2, and libsamplerate. GCC's std-c++17
+dev packages for X11 (including xpm), ALSA, and libsamplerate. GCC's std-c++17
 is required, along with std::filesystem (g++-8 or higher).  The LV2 plugin
 requires the dev package for LV2 1.16 or higher.  The top of the Makefile has
 several switches that can be chosen, including X86 or ARM architectures.
@@ -13,7 +13,7 @@ Deps and config options:
 #   libx11-dev
 #   libxpm-dev
 #   libsamplerate0-dev
-#   libjack-jackd2-dev (for app)
+#   libasound2-dev (for app)
 # Optional:
 #   lv2-dev (1.16+, for experimental LV2)
 #   libgtkmm-3.0-dev (for experimental GTK3 GUI - NOT recommended)

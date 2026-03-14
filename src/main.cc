@@ -22,7 +22,7 @@
 #include <filesystem>
 #include <getopt.h>
 #include "Synth.h"
-#include "JackDriver.h"
+#include "AlsaDriver.h"
 
 #if GTKMM
 #include "Gui-gtkmm.h"
@@ -108,16 +108,16 @@ int main(int argc, char* argv[]) {
 	};
 
 	bool quiet = false; // no tty output
-	bool noauto = false; // no jack autoconnect
+	bool noauto = false; // no ALSA MIDI autoconnect
 	bool newcart = false; // create a new cartrdige file
 	char *cartridge = 0; // cartridge file
 	int bank = -1; // load cartridge to internal memory
 	int Bank = -1; // load cartridge to cartridge memory
 	const char *romfile = 0; // Firmware ROM
 	const char *savefile = 0; // RAM memory "battery backup"
-	const char *midi_in = 0; // jack regex
-	const char *midi_out = 0; // jack regex
-	const char *port = 0; // jack regex
+	const char *midi_in = 0; // ALSA MIDI in auto-connect option string
+	const char *midi_out = 0; // ALSA MIDI out auto-connect option string
+	const char *port = 0; // ALSA PCM device
 	bool tune = false; // set tuning
 	int tuning = 0; // tuning value to set 
 	bool serial = false; // send midi directly to synth
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
 				"	-h (this help)\n"
 				"	-v (version)\n"
 				"	-q quiet (no terminal stdout)\n"
-				"	-a don't autoconnect Jack midi\n"
+				"	-a don't autoconnect ALSA MIDI\n"
 				"	-m send MIDI directly to DX7 serial interface\n"
 				"	-k don't show keyboard on GUI\n"
 				"	-c filename (sysex cartridge file)\n"
@@ -183,9 +183,9 @@ int main(int argc, char* argv[]) {
 				"	-s filename (save/restore RAM memory file, default ~/.config/vdx7/vdx7.ram)\n"
 				"	-t master tuning (+/-256 steps, ~.3 cents/step, default 0=A440)\n"
 				"	-V MIDI velocity curve (.25 to 4.0, default 0.4, 1.0=linear)\n"
-				"	-p port (jack audio port)\n"
-				"	-i midi-in (jack midi in port regex)\n"
-				"	-o midi-out (jack midi out port regex)\n",
+				"	-p device (ALSA PCM device, default 'default')\n"
+				"	-i midi-in (ALSA MIDI input autoconnect, use -a to disable)\n"
+				"	-o midi-out (ALSA MIDI output autoconnect, use -a to disable)\n",
 				argv[0]);
 			exit(-1);
 		}
@@ -239,22 +239,18 @@ int main(int argc, char* argv[]) {
 	if(velArg) synth.parseMidiVelocityArgs(velArg);
 
 	// Set up I/O
-	JackDriver jack(&synth);
-	jack.init();
+	AlsaDriver alsa(&synth);
 
-	// Regex for port connections
+	// ALSA MIDI auto-connect options
 	if(noauto) midi_in = midi_out = "";
-	if(!midi_in && !noauto) midi_in = "system:midi_capture_";
-	if(!midi_out && !noauto) midi_out = "system:midi_playback_[^1]"; // avoid looping
-	if(!port) port = "system:playback_*";
+	if(!midi_in  && !noauto) midi_in  = "auto";
+	if(!midi_out && !noauto) midi_out = "auto";
 
-	if((err=jack.initMidi(midi_in, midi_out))) {
-		fprintf(stderr, "Can't open %s or %s\n", midi_in, midi_out);
-		return(err);
-	}
+	alsa.initPCM(port); // set PCM device (null → "default")
+	alsa.init();        // open PCM and sequencer
 
-	if((err=jack.initPCM(port))) {
-		fprintf(stderr, "Can't open %s\n", port);
+	if((err=alsa.initMidi(midi_in, midi_out))) {
+		fprintf(stderr, "Can't connect ALSA MIDI ports\n");
 		return(err);
 	}
 

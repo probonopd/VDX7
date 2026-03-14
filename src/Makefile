@@ -22,7 +22,7 @@
 #   libx11-dev
 #   libxpm-dev
 #   libsamplerate0-dev
-#   libjack-jackd2-dev (for app)
+#   libasound2-dev (for app)
 # Optional:
 #   lv2-dev (1.16+, for experimental LV2)
 #   libgtkmm-3.0-dev and all it's deps (for experimental GTK3 GUI - NOT recommended)
@@ -86,7 +86,7 @@ endif
 COMMON_SRCS = Synth.cc HD6303R.cc HD6303R_inst.cc dx7.cc firmware.bin voices.bin
 
 LV2_SRCS = $(COMMON_SRCS) lv2_plugin.cc lv2_gui.cc $(GUI_CC) 
-APP_SRCS = $(COMMON_SRCS) main.cc $(GUI_CC) JackDriver.cc 
+APP_SRCS = $(COMMON_SRCS) main.cc $(GUI_CC) AlsaDriver.cc 
 
 
 ##################################
@@ -153,7 +153,7 @@ endif
 
 
 LV2_LDFLAGS= $(LDFLAGS) `pkg-config --libs lv2`
-APP_LDFLAGS= $(LDFLAGS) -ljack 
+APP_LDFLAGS= $(LDFLAGS) -lasound 
 
 ##################################
 ############# Build ##############
