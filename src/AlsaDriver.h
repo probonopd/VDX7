@@ -45,9 +45,12 @@ private:
 	// ALSA PCM
 	snd_pcm_t *pcm_handle = nullptr;
 	bool use_float = true;
-	unsigned int n_channels = 2; // actual channel count negotiated with ALSA
-	std::vector<float>   pcm_buf_f; // interleave buffer for float writes
-	std::vector<int16_t> pcm_buf_s; // interleave buffer for S16 writes
+	unsigned int n_channels = 2;        // actual channel count negotiated with ALSA
+	int period_frames = Synth::BufSize; // actual period size in frames (read back from hw)
+	std::vector<float>   mono_accum;    // mono accumulation buffer (period_frames + BufSize)
+	int accum_fill = 0;                 // frames currently held in mono_accum
+	std::vector<float>   pcm_buf_f;     // interleaved float write buffer (period_frames * n_channels)
+	std::vector<int16_t> pcm_buf_s;     // interleaved S16 write buffer  (period_frames * n_channels)
 
 	// ALSA Sequencer (MIDI)
 	snd_seq_t *seq = nullptr;

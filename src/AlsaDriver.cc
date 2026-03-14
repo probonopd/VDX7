@@ -122,28 +122,43 @@ int AlsaDriver::openPCM(const char *dev_name) {
 
 	snd_pcm_prepare(pcm_handle);
 
-	// Allocate interleave buffers now that n_channels is finalised
-	pcm_buf_f.resize((size_t)BufSize * n_channels);
-	pcm_buf_s.resize((size_t)BufSize * n_channels);
+	// Read back the actual negotiated period and buffer sizes
+	snd_pcm_uframes_t actual_period = 0;
+	snd_pcm_hw_params_get_period_size(params, &actual_period, nullptr);
+	period_frames = (int)actual_period;
 
-	fprintf(stderr, "ALSA PCM: device='%s' rate=%u format=%s channels=%u\n",
-		dev_name, rate, use_float ? "FLOAT" : "S16_LE", n_channels);
+	// Allocate mono accumulation buffer and interleave write buffers.
+	// mono_accum holds up to period_frames + BufSize samples; the while-loop
+	// in audioLoop keeps accum_fill < period_frames before each append, so the
+	// append (BufSize) never exceeds the buffer.
+	mono_accum.assign((size_t)period_frames + (size_t)BufSize, 0.0f);
+	accum_fill = 0;
+	pcm_buf_f.resize((size_t)period_frames * n_channels);
+	pcm_buf_s.resize((size_t)period_frames * n_channels);
+
+	fprintf(stderr, "ALSA PCM: device='%s' rate=%u format=%s channels=%u period=%d\n",
+		dev_name, rate, use_float ? "FLOAT" : "S16_LE", n_channels, period_frames);
 	return 0;
 }
 
-// Write BufSize mono float samples to ALSA PCM, duplicated across all channels
+// Write nframes mono float samples to ALSA PCM, duplicated across all channels.
+// Retries on partial writes (blocking mode can still return short).
 void AlsaDriver::writePCM(float *buf, int nframes) {
-	snd_pcm_sframes_t rc;
+	const void  *data;
+	size_t frame_bytes;
+
 	if (use_float) {
+		frame_bytes = sizeof(float) * n_channels;
 		if (n_channels == 1) {
-			rc = snd_pcm_writei(pcm_handle, buf, nframes);
+			data = buf;
 		} else {
 			for (int i = 0; i < nframes; i++)
 				for (unsigned int ch = 0; ch < n_channels; ch++)
 					pcm_buf_f[(size_t)i * n_channels + ch] = buf[i];
-			rc = snd_pcm_writei(pcm_handle, pcm_buf_f.data(), nframes);
+			data = pcm_buf_f.data();
 		}
 	} else {
+		frame_bytes = sizeof(int16_t) * n_channels;
 		for (int i = 0; i < nframes; i++) {
 			float s = buf[i];
 			if (s >  1.0f) s =  1.0f;
@@ -152,13 +167,24 @@ void AlsaDriver::writePCM(float *buf, int nframes) {
 			for (unsigned int ch = 0; ch < n_channels; ch++)
 				pcm_buf_s[(size_t)i * n_channels + ch] = v;
 		}
-		rc = snd_pcm_writei(pcm_handle, pcm_buf_s.data(), nframes);
+		data = pcm_buf_s.data();
 	}
 
-	if (rc < 0) {
-		rc = snd_pcm_recover(pcm_handle, rc, 0);
-		if (rc < 0)
-			fprintf(stderr, "ALSA PCM write error: %s\n", snd_strerror(rc));
+	// Retry loop handles partial writes (rare but valid in blocking mode)
+	int frames_left = nframes;
+	const uint8_t *ptr = static_cast<const uint8_t *>(data);
+	while (frames_left > 0) {
+		snd_pcm_sframes_t rc = snd_pcm_writei(pcm_handle, ptr,
+		                                       (snd_pcm_uframes_t)frames_left);
+		if (rc < 0) {
+			if ((rc = snd_pcm_recover(pcm_handle, rc, 0)) < 0) {
+				fprintf(stderr, "ALSA PCM write error: %s\n", snd_strerror(rc));
+				break;
+			}
+		} else {
+			frames_left -= (int)rc;
+			ptr         += (size_t)rc * frame_bytes;
+		}
 	}
 }
 
@@ -270,8 +296,14 @@ void AlsaDriver::audioLoop() {
 			}
 		}
 
-		// --- Generate audio ---
+		// --- Generate audio (always BufSize frames) ---
 		synth->run();
+
+		// Append to mono accumulation buffer.
+		// mono_accum is sized period_frames + BufSize, so there is always room.
+		memcpy(mono_accum.data() + accum_fill, synth->outputBuffer,
+		       (size_t)BufSize * sizeof(float));
+		accum_fill += BufSize;
 
 		// --- MIDI output: forward synth TX events to sequencer ---
 		if (seq && midi_encoder) {
@@ -292,8 +324,20 @@ void AlsaDriver::audioLoop() {
 			}
 		}
 
-		// --- Write audio to PCM (blocks until hardware needs more data) ---
-		writePCM(synth->outputBuffer, BufSize);
+		// --- Write complete periods to PCM once we have enough frames.
+		//     Loop so that when period_frames < BufSize we drain all ready
+		//     periods in one go, keeping accum_fill < period_frames.
+		//     snd_pcm_writei() blocks when the ring buffer is full, which
+		//     naturally paces the loop to real time. ---
+		while (accum_fill >= period_frames) {
+			writePCM(mono_accum.data(), period_frames);
+			int remainder = accum_fill - period_frames;
+			if (remainder > 0)
+				memmove(mono_accum.data(),
+				        mono_accum.data() + period_frames,
+				        (size_t)remainder * sizeof(float));
+			accum_fill = remainder;
+		}
 	}
 }
 
