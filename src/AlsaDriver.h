@@ -44,6 +44,7 @@ private:
 	// ALSA PCM
 	snd_pcm_t *pcm_handle = nullptr;
 	bool use_float = true;
+	unsigned int n_channels = 2; // actual channel count negotiated with ALSA
 
 	// ALSA Sequencer (MIDI)
 	snd_seq_t *seq = nullptr;
