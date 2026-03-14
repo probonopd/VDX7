@@ -22,8 +22,9 @@
 #   libx11-dev
 #   libxpm-dev
 #   libsamplerate0-dev
-#   libasound2-dev (for app)
+#   libasound2-dev (for app, when USE_JACK=0)
 # Optional:
+#   libjack-jackd2-dev (when USE_JACK=1)
 #   lv2-dev (1.16+, for experimental LV2)
 #   libgtkmm-3.0-dev and all it's deps (for experimental GTK3 GUI - NOT recommended)
 
@@ -34,6 +35,7 @@ USE_NATIVE=0
 USE_LV2=1
 USE_ARM=0
 USE_GTKMM=0
+USE_JACK=0
 ##################################
 
 APP=vdx7
@@ -63,6 +65,8 @@ APP_EXEC=$(APP)
 MANIFEST= $(APP).ttl manifest.ttl
 
 ####### COMPILER ###########
+ARCH := $(shell uname -m)
+
 SSE= -msse -msse2 -mfpmath=sse
 #SSE+= -ftree-vectorize -funsafe-math-optimizations
 
@@ -86,7 +90,11 @@ endif
 COMMON_SRCS = Synth.cc HD6303R.cc HD6303R_inst.cc dx7.cc firmware.bin voices.bin
 
 LV2_SRCS = $(COMMON_SRCS) lv2_plugin.cc lv2_gui.cc $(GUI_CC) 
+ifeq ($(USE_JACK),1)
+APP_SRCS = $(COMMON_SRCS) main.cc $(GUI_CC) JackDriver.cc 
+else
 APP_SRCS = $(COMMON_SRCS) main.cc $(GUI_CC) AlsaDriver.cc 
+endif
 
 
 ##################################
@@ -111,7 +119,7 @@ CXXFLAGS+= -std=c++17
 
 ifeq ($(USE_ARM),1)
 	CFLAGS+=$(NEON)
-else
+else ifneq (,$(filter $(ARCH),x86_64 i686 i386))
 	CFLAGS+=$(SSE)
 endif
 
@@ -120,6 +128,12 @@ CPPFLAGS+=-DVERSION=$(VERSION)$(BUILD)
 
 # Force G++ to inline the EGS and OPS clock functions
 CPPFLAGS+=-DINLINE_EGS
+
+ifeq ($(USE_JACK),1)
+CPPFLAGS+=-DUSE_JACK=1
+else
+CPPFLAGS+=-DUSE_JACK=0
+endif
 
 CFLAGS+= -fPIC -DPIC
 
@@ -153,7 +167,11 @@ endif
 
 
 LV2_LDFLAGS= $(LDFLAGS) `pkg-config --libs lv2`
-APP_LDFLAGS= $(LDFLAGS) -lasound 
+ifeq ($(USE_JACK),1)
+APP_LDFLAGS= $(LDFLAGS) -ljack
+else
+APP_LDFLAGS= $(LDFLAGS) -lasound
+endif
 
 ##################################
 ############# Build ##############

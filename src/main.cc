@@ -22,7 +22,11 @@
 #include <filesystem>
 #include <getopt.h>
 #include "Synth.h"
+#if defined(USE_JACK) && USE_JACK
+#include "JackDriver.h"
+#else
 #include "AlsaDriver.h"
+#endif
 
 #if GTKMM
 #include "Gui-gtkmm.h"
@@ -108,16 +112,16 @@ int main(int argc, char* argv[]) {
 	};
 
 	bool quiet = false; // no tty output
-	bool noauto = false; // no ALSA MIDI autoconnect
+	bool noauto = false; // no MIDI autoconnect
 	bool newcart = false; // create a new cartrdige file
 	char *cartridge = 0; // cartridge file
 	int bank = -1; // load cartridge to internal memory
 	int Bank = -1; // load cartridge to cartridge memory
 	const char *romfile = 0; // Firmware ROM
 	const char *savefile = 0; // RAM memory "battery backup"
-	const char *midi_in = 0; // ALSA MIDI in auto-connect option string
-	const char *midi_out = 0; // ALSA MIDI out auto-connect option string
-	const char *port = 0; // ALSA PCM device
+	const char *midi_in = 0; // MIDI in port/device
+	const char *midi_out = 0; // MIDI out port/device
+	const char *port = 0; // audio port/device
 	bool tune = false; // set tuning
 	int tuning = 0; // tuning value to set 
 	bool serial = false; // send midi directly to synth
@@ -239,6 +243,26 @@ int main(int argc, char* argv[]) {
 	if(velArg) synth.parseMidiVelocityArgs(velArg);
 
 	// Set up I/O
+#if defined(USE_JACK) && USE_JACK
+	JackDriver jack(&synth);
+	jack.init();
+
+	// Regex for port connections
+	if(noauto) midi_in = midi_out = "";
+	if(!midi_in && !noauto) midi_in = "system:midi_capture_";
+	if(!midi_out && !noauto) midi_out = "system:midi_playback_[^1]"; // avoid looping
+	if(!port) port = "system:playback_*";
+
+	if((err=jack.initMidi(midi_in, midi_out))) {
+		fprintf(stderr, "Can't open %s or %s\n", midi_in, midi_out);
+		return(err);
+	}
+
+	if((err=jack.initPCM(port))) {
+		fprintf(stderr, "Can't open %s\n", port);
+		return(err);
+	}
+#else
 	AlsaDriver alsa(&synth);
 
 	// ALSA MIDI auto-connect options
@@ -253,6 +277,7 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Can't connect ALSA MIDI ports\n");
 		return(err);
 	}
+#endif
 
 	// Set up GUI
 #if GTKMM
