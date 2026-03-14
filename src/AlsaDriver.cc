@@ -95,14 +95,10 @@ int AlsaDriver::openPCM(const char *dev_name) {
 		}
 	}
 
-	// Prefer stereo; fall back to whatever channel count the device supports
+	// Accept whatever channel count the device supports; duplicate mono to all channels
 	n_channels = 2;
 	if ((err = snd_pcm_hw_params_set_channels_near(pcm_handle, params, &n_channels)) < 0) {
 		fprintf(stderr, "ALSA: cannot set channel count: %s\n", snd_strerror(err));
-		return 1;
-	}
-	if (n_channels != 1 && n_channels != 2) {
-		fprintf(stderr, "ALSA: device supports neither mono nor stereo (%u ch)\n", n_channels);
 		return 1;
 	}
 
@@ -126,49 +122,37 @@ int AlsaDriver::openPCM(const char *dev_name) {
 
 	snd_pcm_prepare(pcm_handle);
 
+	// Allocate interleave buffers now that n_channels is finalised
+	pcm_buf_f.resize((size_t)BufSize * n_channels);
+	pcm_buf_s.resize((size_t)BufSize * n_channels);
+
 	fprintf(stderr, "ALSA PCM: device='%s' rate=%u format=%s channels=%u\n",
 		dev_name, rate, use_float ? "FLOAT" : "S16_LE", n_channels);
 	return 0;
 }
 
-// Write BufSize mono float samples as stereo (or mono) to ALSA PCM
+// Write BufSize mono float samples to ALSA PCM, duplicated across all channels
 void AlsaDriver::writePCM(float *buf, int nframes) {
-	// Use fixed-size arrays based on the compile-time constant Synth::BufSize.
-	// nframes is always BufSize (128), so the stereo buffer is at most 256 elements.
-	static float   pcm_f[Synth::BufSize * 2];
-	static int16_t pcm_s[Synth::BufSize * 2];
-
 	snd_pcm_sframes_t rc;
 	if (use_float) {
-		if (n_channels == 2) {
-			for (int i = 0; i < nframes; i++) {
-				pcm_f[i*2]   = buf[i];
-				pcm_f[i*2+1] = buf[i];
-			}
-			rc = snd_pcm_writei(pcm_handle, pcm_f, nframes);
-		} else {
+		if (n_channels == 1) {
 			rc = snd_pcm_writei(pcm_handle, buf, nframes);
+		} else {
+			for (int i = 0; i < nframes; i++)
+				for (unsigned int ch = 0; ch < n_channels; ch++)
+					pcm_buf_f[(size_t)i * n_channels + ch] = buf[i];
+			rc = snd_pcm_writei(pcm_handle, pcm_buf_f.data(), nframes);
 		}
 	} else {
-		if (n_channels == 2) {
-			for (int i = 0; i < nframes; i++) {
-				float s = buf[i];
-				if (s >  1.0f) s =  1.0f;
-				if (s < -1.0f) s = -1.0f;
-				int16_t v = (int16_t)(s * 32767.0f);
-				pcm_s[i*2]   = v;
-				pcm_s[i*2+1] = v;
-			}
-			rc = snd_pcm_writei(pcm_handle, pcm_s, nframes);
-		} else {
-			for (int i = 0; i < nframes; i++) {
-				float s = buf[i];
-				if (s >  1.0f) s =  1.0f;
-				if (s < -1.0f) s = -1.0f;
-				pcm_s[i] = (int16_t)(s * 32767.0f);
-			}
-			rc = snd_pcm_writei(pcm_handle, pcm_s, nframes);
+		for (int i = 0; i < nframes; i++) {
+			float s = buf[i];
+			if (s >  1.0f) s =  1.0f;
+			if (s < -1.0f) s = -1.0f;
+			int16_t v = (int16_t)(s * 32767.0f);
+			for (unsigned int ch = 0; ch < n_channels; ch++)
+				pcm_buf_s[(size_t)i * n_channels + ch] = v;
 		}
+		rc = snd_pcm_writei(pcm_handle, pcm_buf_s.data(), nframes);
 	}
 
 	if (rc < 0) {

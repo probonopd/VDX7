@@ -21,6 +21,7 @@
 #include <alsa/asoundlib.h>
 #include <thread>
 #include <atomic>
+#include <vector>
 #include "Synth.h"
 
 class AlsaDriver {
@@ -45,6 +46,8 @@ private:
 	snd_pcm_t *pcm_handle = nullptr;
 	bool use_float = true;
 	unsigned int n_channels = 2; // actual channel count negotiated with ALSA
+	std::vector<float>   pcm_buf_f; // interleave buffer for float writes
+	std::vector<int16_t> pcm_buf_s; // interleave buffer for S16 writes
 
 	// ALSA Sequencer (MIDI)
 	snd_seq_t *seq = nullptr;
