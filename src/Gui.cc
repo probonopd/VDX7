@@ -120,6 +120,7 @@ DX7GUI::DX7GUI(bool showKeyboard, Window _parent) : showKeyboard(showKeyboard) {
 
 	// Allow WM delete
 	wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False);
+	wmProtocols = XInternAtom(display, "WM_PROTOCOLS", False);
 	XSetWMProtocols(display, panel, &wmDeleteMessage, 1);
 
 	// Inputs
@@ -127,7 +128,8 @@ DX7GUI::DX7GUI(bool showKeyboard, Window _parent) : showKeyboard(showKeyboard) {
 			KeyPressMask|KeyReleaseMask
 			|ButtonPressMask|ButtonReleaseMask
 			|Button1MotionMask
-			|ExposureMask);
+			|ExposureMask
+			|StructureNotifyMask);
 
 	// Background image
 	Pixmap panel_bg;
@@ -468,10 +470,16 @@ void DX7GUI::processEvent() {
 				if(showKeyboard) keyboard->keyrelease(k);
 				break;
 			}
+		}
 		break;
-	}
 	case ClientMessage:
-		if (ev.xclient.data.l[0] == (unsigned)wmDeleteMessage) running = false;
+		if (ev.xclient.message_type == wmProtocols &&
+			(ev.xclient.data.l[0] == (long)wmDeleteMessage)) {
+			running = false;
+		}
+		break;
+	case DestroyNotify:
+		if(ev.xdestroywindow.window == panel) running = false;
 		break;
 	}
 }

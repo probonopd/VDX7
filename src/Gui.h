@@ -77,6 +77,7 @@ private:
 	WidgetList widgets;	// Map of all widgets
 
 	Atom wmDeleteMessage;
+	Atom wmProtocols;
 
 	const int width = 1210;
 	int height = 360;
