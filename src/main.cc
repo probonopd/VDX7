@@ -266,9 +266,15 @@ int main(int argc, char* argv[]) {
 	AlsaDriver alsa(&synth);
 
 	// ALSA MIDI auto-connect options
+	// NOTE: midi_out is intentionally NOT auto-connected by default.
+	// The DX7 firmware echoes received MIDI notes on its MIDI TX output.
+	// If MIDI output is connected to the same ports as MIDI input
+	// (e.g. via the kernel "Midi Through" client), the echoed notes
+	// loop back as new inputs, causing infinite note repetition.
+	// Use -o <port> to explicitly enable MIDI output if needed.
 	if(noauto) midi_in = midi_out = "";
 	if(!midi_in  && !noauto) midi_in  = "auto";
-	if(!midi_out && !noauto) midi_out = "auto";
+	if(!midi_out) midi_out = ""; // no output auto-connect
 
 	alsa.initPCM(port); // set PCM device (null → "default")
 	alsa.init();        // open PCM and sequencer

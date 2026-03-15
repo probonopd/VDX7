@@ -74,8 +74,9 @@ struct HD6303R {
 	// Operation ///////////////////////////////////
 	void step();
 	virtual void trace();
-	void crash() { halt = true; }
+	void crash() { halt = true; halt_saved = false; }
 	bool halt = false;
+	bool halt_saved = false; // true after WAI (regs already on stack); false after SLP
 	uint64_t cycle = 0;
 	bool readTCSR=false;
 	bool wroteOCR=false;

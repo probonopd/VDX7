@@ -108,11 +108,20 @@ struct Interface {
 };
 
 // Comm channel with a Lock-Free Queue
+// push() uses a spinlock so that multiple producer threads (e.g. the
+// ALSA audio thread via parseMIDI and the GUI thread via keyboard
+// events) can safely enqueue without corrupting the SPSC ring buffer.
 struct AppInterface : public virtual Interface {
 	virtual ~AppInterface() {}
-	virtual void push(Message m) { lfq.push(m); }
+	virtual void push(Message m) {
+		while (_push_lock.test_and_set(std::memory_order_acquire)) {}
+		lfq.push(m);
+		_push_lock.clear(std::memory_order_release);
+	}
 	virtual int pop(Message &m) { return lfq.pop(m); }
 	CircularFifo<Message, 1024> lfq;
+private:
+	std::atomic_flag _push_lock = ATOMIC_FLAG_INIT;
 };
 
 // Comm interface for Synth-to-Gui messages

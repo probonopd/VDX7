@@ -135,10 +135,17 @@ int DX7Synth::fillBuffer() {
 	cyc_count += cpuCyclesPerBuf;
 	int outCnt = 0;
 	Message msg;
+	// Rate-limit message delivery to match real DX7 hardware timing.
+	// The real sub-CPU scans at ~100 Hz and MIDI arrives at 31.25k baud,
+	// so at most a few events per buffer period (~2.7ms). Delivering
+	// more than that overwhelms the firmware's ISR, which uses CLI to
+	// allow OCI preemption — excessive events cause deep stack usage.
+	int msgsThisBuf = 0;
+	static constexpr int MaxMsgsPerBuf = 1;
 	while(cyc_count > 0) {
-		// Process messages
-		if(!dx7.haveMsg) // CPU is ready
-			if(toSynth->pop(msg)) processMessage(msg);
+		// Process event messages from UI/MIDI threads
+		if(!dx7.haveMsg && msgsThisBuf < MaxMsgsPerBuf)
+			if(toSynth->pop(msg)) { processMessage(msg); msgsThisBuf++; }
 
 		// Run one instruction
 		dx7.run();

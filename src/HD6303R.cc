@@ -19,7 +19,54 @@
 #include "HD6303R.h"
 
 void HD6303R::step() {
-	if(halt) return;
+	if(halt) {
+		// CPU is halted (WAI or SLP). Advance timer and check for interrupts.
+		// For WAI (halt_saved=true): registers are already on the stack,
+		//   so wakeup just loads PC from the interrupt vector.
+		// For SLP (halt_saved=false): registers are NOT saved yet,
+		//   so wakeup goes through the normal interrupt() entry (saves regs).
+		uint16_t cycles = inst ? (uint16_t)inst->cycles : 4;
+
+		cycle          += cycles;
+		sci_tx_counter += cycles;
+		sci_rx_counter += cycles;
+
+		// Advance FRC timer
+		uint32_t p_timer1 = getm16(0x09);
+		uint32_t timer1   = p_timer1 + cycles;
+		stom16(0x09, timer1 & 0xFFFF);
+
+		// OCR match: set OCF flag
+		uint32_t ocr = getm16(0x0B);
+		if (timer1 >= ocr && p_timer1 < ocr) {
+			TCSR = set(TCSR, OCF);
+			readTCSR = wroteOCR = false;
+		}
+
+		// Wake helper: for WAI don't push regs again, for SLP go through interrupt()
+		auto try_wake = [&](uint16_t vector) -> bool {
+			if (I) return false; // interrupt masked
+			halt = false;
+			if (halt_saved) {
+				// WAI: registers already on stack, just load PC
+				I  = 1;
+				PC = (uint16_t(memory[vector]) << 8) | memory[vector + 1];
+			} else {
+				// SLP: normal interrupt entry (pushes regs)
+				interrupt(vector);
+			}
+			halt_saved = false;
+			return true;
+		};
+
+		if (!irqpin)                                        if (try_wake(0xFFF8)) return;
+		if (bit(TCSR, OCF) && bit(TCSR, EOCI))              if (try_wake(0xFFF4)) return;
+		constexpr uint8_t sci1 = (1<<TDRE)|(1<<TIE)|(1<<TE);
+		constexpr uint8_t sci2 = (1<<RDRF)|(1<<RIE)|(1<<RE);
+		if ((TRCSR & sci1) == sci1 || (TRCSR & sci2) == sci2) if (try_wake(0xFFF0)) return;
+
+		return;
+	}
 
 	opcode = memory[PC++];
 	inst = instructions+opcode;
@@ -158,6 +205,10 @@ void HD6303R::reset() {
 	RDR    = 0x00;
 	TDR    = 0x00;
 	RAMCR  = 0x14;
+
+	// Initialize stack pointer to top of available RAM
+	// DX7 RAM is at 0x1000-0x2800, so start stack at top (0x27FF)
+	SP = 0x27FF;
 
 	// Set PC to reset vector
 	PC = getm16(0xFFFE);

@@ -22,6 +22,8 @@
 #include <thread>
 #include <atomic>
 #include <vector>
+#include <cstdio>
+#include <cstdint>
 #include "Synth.h"
 
 class AlsaDriver {
@@ -31,6 +33,11 @@ public:
 	int initMidi(const char *in_port_name, const char *out_port_name);
 	int initPCM(const char *dev_name);
 	virtual ~AlsaDriver();
+
+	// Optional: open a WAV file and record all audio output into it.
+	// Call before initMidi() (which starts the audio thread).
+	// wavSeconds <= 0 means record indefinitely (until destructor).
+	void openCapture(const char *wavfile, float wavSeconds = 0.f);
 
 private:
 	int openPCM(const char *dev_name);
@@ -66,4 +73,11 @@ private:
 	const char *midi_in_rx = nullptr;
 	const char *midi_out_rx = nullptr;
 	const char *pcm_dev = nullptr;
+
+	// WAV capture
+	FILE    *cap_fp          = nullptr; // capture file
+	int32_t  cap_samples     = 0;       // frames written
+	int32_t  cap_limit       = -1;      // -1 = unlimited
+	void capWrite(const float *buf, int nframes);
+	void capClose();
 };

@@ -133,11 +133,11 @@ void DX7::run() {
 	// Start of sub-CPU Event Handshake:
 	// P20/C2 high means main CPU is ready for next message
 	// haveMsg means Synth/GUI has given us a message to process
-	if(bit(PORT2,0) && haveMsg && !byte1Sent) {
+	if(bit(PORT2,0) && haveMsg && handshakeState == 0) {
 		PORT1 = msg.byte1;
 		clear(PORT2,1); // Sub-CPU clears pin 21, telling CPU to read in the byte
 		irqpin = false; // Active low triggers IRQ interrupt
-		byte1Sent = true;
+		handshakeState = 1;
 	}
 
 	// Only need to look at instructions that write memory from here on
@@ -167,14 +167,19 @@ void DX7::run() {
 			// After HANDLER_IRQ interrupt has run for a while...
 			// P_ACEPT flipflop is set by hardware when 0x280C is put on the system bus,
 			// driving C1 low on the Sub-CPU, telling us we can send the second byte
-			if(byte1Sent) {
+			if(handshakeState == 1) {
 				PORT1 = msg.byte2;
 				clear(PORT2,1); // Sub-CPU signals to read in the second byte
-				irqpin = false; // Hardware also activates IRQ, but it's now masked
-				byte1Sent = false;
-			} else { // We're done
+				// Note: On real hardware, the sub-CPU also pulses IRQ here,
+				// but the CPU is still in the ISR with I=1, so the IRQ is
+				// never taken.  We must NOT set irqpin=false here because
+				// it would persist and fire a spurious nested IRQ once the
+				// firmware does CLI (to allow OCI), corrupting event state.
+				handshakeState = 2;
+			} else if(handshakeState == 2) { // We're done
 				irqpin = true; // P_ACEPT resets IRQ READY flipflop
 				haveMsg = false; // Tell Synth/GUI we're ready for another message
+				handshakeState = 0;
 			}
 		}
 
