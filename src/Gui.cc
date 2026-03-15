@@ -303,8 +303,8 @@ void DX7GUI::processMessages() {
 					lcd->restoreState(data, len);
 					break;
 				}
-			case Message::CtrlID::key_on: keyboard->keyMidiOn(msg.byte2); break;
-			case Message::CtrlID::key_off: keyboard->keyMidiOff(msg.byte2); break;
+			case Message::CtrlID::key_on: if(showKeyboard) keyboard->keyMidiOn(msg.byte2); break;
+			case Message::CtrlID::key_off: if(showKeyboard) keyboard->keyMidiOff(msg.byte2); break;
 			default: break;
 		}
 	}
