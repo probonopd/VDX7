@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.arch }})
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libx11-dev \
+            libxpm-dev \
+            libsamplerate0-dev \
+            libasound2-dev
+
+      - name: Build
+        run: |
+          cd src
+          make USE_LV2=0 USE_NATIVE=0 app
+
+      - name: Strip binary
+        run: strip src/vdx7
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vdx7-linux-${{ matrix.arch }}
+          path: src/vdx7
+          if-no-files-found: error

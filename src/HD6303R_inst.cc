@@ -302,9 +302,10 @@ void HD6303R::I8(uint8_t r) { // increment 8 bit
 }
 
 // Instruction helpers
-void HD6303R::isleep() { halt = true; }
+void HD6303R::isleep() { halt = true; halt_saved = false; }
 void HD6303R::wait() {
 	halt = true;
+	halt_saved = true; // registers saved below; wakeup loads PC directly (no re-push)
 	push(PC);
 	push(IX);
 	memory[SP--] = A;

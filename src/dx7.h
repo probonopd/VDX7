@@ -82,8 +82,12 @@ struct DX7: public HD6303R {
 
 	void tune(int tuning); // Master tuning -256 to +255, at about .3 cents/step. 0=A440
 
-	// Interrupt to transfer events from sub-cpu to main
-	bool byte1Sent = false, haveMsg = false;
+	// Sub-CPU event handshake state machine
+	// 0: idle (ready for next message)
+	// 1: byte1 delivered, waiting for first P_ACEPT
+	// 2: byte2 delivered, waiting for second P_ACEPT
+	int handshakeState = 0;
+	bool haveMsg = false;
 
 	Message msg; // Queue of messages from GUI
 
