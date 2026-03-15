@@ -29,6 +29,7 @@ void DX7GUI::idle() {
 		lcd->draw();
 		led1->draw();
 		led2->draw();
+		if(showKeyboard) keyboard->draw();
 		XFlush(display);
 	} else while(XPending(display)) processEvent();
 }
@@ -53,6 +54,7 @@ void DX7GUI::run() {
 				lcd->draw();
 				led1->draw();
 				led2->draw();
+				if(showKeyboard) keyboard->draw();
 				XFlush(display);
 			}
 		} else processEvent();
@@ -299,6 +301,8 @@ void DX7GUI::processMessages() {
 					lcd->restoreState(data, len);
 					break;
 				}
+			case Message::CtrlID::key_on: keyboard->keyMidiOn(msg.byte2); break;
+			case Message::CtrlID::key_off: keyboard->keyMidiOff(msg.byte2); break;
 			default: break;
 		}
 	}
@@ -422,6 +426,15 @@ void DX7GUI::processEvent() {
 			case XK_Escape: // Shutdown
 				running = false;
 				break;
+			case XK_F4: // Alt-F4 to close
+				if(ev.xkey.state & Mod1Mask) running = false;
+				break;
+			case XK_w: // Alt-W or Ctrl-W to close
+			case XK_W:
+			case XK_q: // Alt-Q or Ctrl-Q to close
+			case XK_Q:
+				if((ev.xkey.state & Mod1Mask) || (ev.xkey.state & ControlMask)) running = false;
+				break;
 			case XK_space: // sustain pedal (or porta) is space bar
 				toSynth->sustain(true);
 				//toSynth->porta(true);
@@ -455,9 +468,10 @@ void DX7GUI::processEvent() {
 				if(showKeyboard) keyboard->keyrelease(k);
 				break;
 			}
-		}
+		break;
+	}
 	case ClientMessage:
 		if (ev.xclient.data.l[0] == (unsigned)wmDeleteMessage) running = false;
+		break;
 	}
 }
-

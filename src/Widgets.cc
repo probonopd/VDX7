@@ -113,7 +113,7 @@ Keyboard::Key::Key(Context ctx, int k, bool wh, int x, int y, int w, int h)
 
 void Keyboard::Key::draw() {
 	if(iswhite) {
-		if (on) {
+		if (on || midiOn) {
 			XSetForeground(display, gc, colON);
 			XFillRectangle(display, window, gc, 0, 0, w, h);
 		} else {
@@ -123,7 +123,7 @@ void Keyboard::Key::draw() {
 			XDrawRectangle(display, window, gc, 0, 0, w, h);
 		}
 	} else {
-		if (on) XSetForeground(display, gc, colON);
+		if (on || midiOn) XSetForeground(display, gc, colON);
 			else XSetForeground(display, gc, colBK);
 		XFillRectangle(display, window, gc, 0, 0, w, h);
 	}
@@ -205,6 +205,10 @@ Keyboard::Keyboard(Context ctx, Grid g)
 		keys[k] = new Key(keyctx, k, iswhite, kx, ky, kw, kh);
 	}
 	for(int k=0; k<numkeys; k++) if(! keys[k]->isWhite()) keys[k]->raise();
+}
+
+void Keyboard::draw() {
+	for(int k=0; k<numkeys; k++) keys[k]->draw();
 }
 	
 void Keyboard::keypress(unsigned k) {

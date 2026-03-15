@@ -47,7 +47,7 @@ const unsigned colLD = 0xC00000;
 const unsigned colWK = 0xFFFFFF;
 const unsigned colTR = 0x00FF00;
 const unsigned colBK = 0x000000;
-const unsigned colON = 0x0000FF;
+const unsigned colON = 0x808080;
 
 const unsigned colSP = 0xFF6D5E;
 const unsigned colBN = 0x00BBBE;
@@ -228,10 +228,13 @@ private:
 		virtual void send();
 		void raise() { XRaiseWindow(display, window); }
 		bool isWhite() { return iswhite; }
+		void setMidiOn() { midiOn = true; }
+		void setMidiOff() { midiOn = false; }
 
 	private:
 		GC gc;
 		bool on = false;
+		bool midiOn = false;
 		const uint8_t key;
 		uint8_t velocity=0;
 		const bool iswhite;
@@ -250,8 +253,11 @@ public:
 	Key *keys[numkeys];
 
 	Keyboard(Context ctx, Grid g);
+	virtual void draw();
 	virtual void keypress(unsigned k);
 	virtual void keyrelease(unsigned k);
+	void keyMidiOn(int k) { if(k<numkeys) keys[k]->setMidiOn(); }
+	void keyMidiOff(int k) { if(k<numkeys) keys[k]->setMidiOff(); }
 };
 
 class LCD : public WidgetBase {

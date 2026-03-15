@@ -94,6 +94,8 @@ struct Message {
 		cartridge_num = 234,
 		cartridge_name = 235, // data byte is length of binary data string to follow
 		lcd_state = 236, // data byte is length of binary data string to follow
+		key_on = 237, // Byte 2 = key (0-60)
+		key_off = 238, // Byte 2 = key (0-60)
 	};
 };
 
@@ -133,7 +135,9 @@ struct ToGui : public virtual Interface {
 	void led2_setval(uint8_t v) { push({Message::CtrlID::led2_setval, v}); }
 	void cartridge_num(uint8_t v) { push({Message::CtrlID::cartridge_num, v}); }
 	void cartridge_name(const uint8_t *data, uint8_t len) { sendBinary(Message::CtrlID::cartridge_name, data, len); } 
-	void lcd_state(const uint8_t *data, uint8_t len) { sendBinary(Message::CtrlID::lcd_state, data, len); } 
+	void lcd_state(const uint8_t *data, uint8_t len) { sendBinary(Message::CtrlID::lcd_state, data, len); }
+	void key_on(uint8_t key) { if(key<61) push({Message::CtrlID::key_on, key}); }
+	void key_off(uint8_t key) { if(key<61) push({Message::CtrlID::key_off, key}); }
 };
 
 // Comm interface for Gui-to-Synth messages

@@ -192,8 +192,8 @@ bool DX7Synth::parseMIDI(const uint32_t size, const uint8_t *const buffer) {
 	char chan = buffer[0] & 0xF;
 	if(chan != dx7.getMidiRxChannel()) return false;
 	switch(buffer[0]&0xF0) {
-	case 0x80: if(buffer[1]>=36) toSynth->key_off(buffer[1]-36); return true;
-	case 0x90: if(buffer[1]>=36) toSynth->key_on(buffer[1]-36, midiVelocity[buffer[2]]); return true;
+	case 0x80: if(buffer[1]>=36) { toSynth->key_off(buffer[1]-36); toGui->key_off(buffer[1]-36); } return true;
+	case 0x90: if(buffer[1]>=36) { toSynth->key_on(buffer[1]-36, midiVelocity[buffer[2]]); toGui->key_on(buffer[1]-36); } return true;
 	case 0xB0:
 		switch(buffer[1]) {
 		// Ctrl 0 (bank change MSB) triggers a reset bug in the native DX7 firmware,
@@ -221,7 +221,7 @@ bool DX7Synth::parseMIDI(const uint32_t size, const uint8_t *const buffer) {
 		case 123:// All notes off
 				// Works around a DX7 firmware bug that fails to clear stuck voices
 				fprintf(stderr, "all notes off\n");
-				for(int i=0; i<61; i++) toSynth->key_off(i);
+				for(int i=0; i<61; i++) { toSynth->key_off(i); toGui->key_off(i); }
 				return false; // also forward to serial
 
 		// Turn on "clean" mode (no modelling of DX7 DAC)

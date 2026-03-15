@@ -32,7 +32,7 @@
 ##### Configuration options: #####
 ##################################
 USE_NATIVE=0
-USE_LV2=1
+USE_LV2=0
 USE_ARM=0
 USE_GTKMM=0
 USE_JACK=0
@@ -67,7 +67,15 @@ MANIFEST= $(APP).ttl manifest.ttl
 ####### COMPILER ###########
 ARCH := $(shell uname -m)
 
+# Only enable x86 SIMD flags on x86/x86_64 platforms.
+# Some toolchains (such as Arm) reject -msse/-msse2/-mfpmath.
+ifeq ($(ARCH),x86_64)
 SSE= -msse -msse2 -mfpmath=sse
+else ifeq ($(ARCH),i686)
+SSE= -msse -msse2 -mfpmath=sse
+else
+SSE=
+endif
 #SSE+= -ftree-vectorize -funsafe-math-optimizations
 
 NEON= -mcpu=cortex-a53
