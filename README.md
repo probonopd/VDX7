@@ -9,7 +9,7 @@ of a host of people including ajxs @ajxs (ROM disassembly), Ken Shirriff @shirri
 analysis), Raph Levian @raphlinus (MSFA), Pascal Gauthier @asb2m10 (Dexed) and many others past and
 present that have contributed to the understanding of this iconic synthesizer.
 
-The synth is designed to run on Linux, with a simple X11-based GUI, and Jack
+The synth is designed to run on Linux, with a simple X11-based GUI, and ALSA
 for audio and MIDI transport.
 
 ![Screenshot](screenshot.png)
@@ -24,9 +24,9 @@ The best way to learn the synth's features is to refer to the original
 Operation Manual, readily available online.
 
 Running the app with no command line options will autoconnect to any available
-MIDI inputs and connect the synth output to the system audio ports. A Jack
-server needs to be running, though some distros will automatically start a
-jackd instance with the last used parameters.
+ALSA MIDI inputs and connect the synth output to the default ALSA audio device.
+No audio server (such as JACK or PipeWire) needs to be running; the app uses
+ALSA directly.
 
 The GUI includes a "toy" keyboard that can be used for testing and auditing
 voices, along with mod and pitchbend wheels (the LV2 plugin version does not
@@ -49,11 +49,11 @@ original factory ROM cartridge banks, which are built into the app.
 ### Command Line Options
 The command line -h option returns:
 ```
-Usage: dx7 
+Usage: vdx7 
    -h (this help)
    -v (version)
    -q quiet (no terminal stdout)
-   -a don't autoconnect Jack midi
+   -a don't autoconnect ALSA MIDI
    -m send MIDI directly to DX7 serial interface
    -k don't show keyboard on GUI
    -c filename (sysex cartridge file)
@@ -61,28 +61,17 @@ Usage: dx7
    -r filename (load a firmware ROM)
    -b [0-7] (bank number: load factory voice cartridge into internal memory)
    -B [0-7] (bank number: load factory voice cartridge into cartridge memory)
-   -s filename (save/restore RAM memory file, default ~/.config/dx7/dx7.ram)
+   -s filename (save/restore RAM memory file, default ~/.config/vdx7/vdx7.ram)
    -t master tuning (+/-256 steps, ~.3 cents/step, default 0=A440)
    -V MIDI velocity curve (.25 to 4.0, default 0.4, 1.0=linear)
-   -p port (jack audio port)
-   -i midi-in (jack midi in port regex)
-   -o midi-out (jack midi out port regex)
+   -p device (ALSA PCM device, default 'default')
+   -i midi-in (ALSA MIDI input autoconnect, use -a to disable)
+   -o midi-out (ALSA MIDI output autoconnect, use -a to disable)
 ```
 
-The synth will try to autoconnect to all Jack audio sink ports. The "-p"
-option allow you to specify a specific port or ports (using a regex).
-
-The synth will also try to autoconnect Jack MIDI ports (the "-a" option
-prevents this).  The "-i" and "-o" options allow you to specify which MIDI
-ports to connect to for input and output respectively. Jack allows these to be
-regular expressions (though the exact regex syntax is evidently not
-documented).  This is useful to prevent MIDI "boomerang" loops, since the
-synth will output MIDI from the GUI keyboard, and receive the same note if the
-system in and out ports are connected. Use something like -i
-"midi_capture_[^1]$", for example, if midi_capture_1 is the system port. Note
-that the synth does not re-transmit MIDI received, so you only get the
-boomerang on notes played from the internal GUI keyboard, not an external MIDI
-keyboard that you would use for normal performance.
+The synth will try to autoconnect to all available ALSA MIDI inputs and outputs.
+The "-a" option prevents autoconnect.  The "-i" and "-o" options are accepted
+for compatibility but currently act as a flag to enable/disable autoconnect.
 
 With no option, the synth will try to read a file in the user's home directory
 "~/.config/dx7/dx7.ram", which contains the persistent state of the synth's
@@ -226,12 +215,4 @@ MIDI bugs in the V1.8 ROM:
   during Mono mode or during "voice stealing" in Poly mode, turn off Osc Sync
   (edit menu, button 17). This is documented, somewhat vaguely, in the Operating
   Manual.
-
-- Some older versions of Jack may have a limit on the maximum size of a SYSEX
-  message that it will carry, and the full 32 voice dump is 4104 bytes, so
-  those messages could get dropped.  Recent versions of Jack have a high enough
-  limit that this is not a problem, but if you do run into the limit, you can
-  always load and save memory dumps as cartridges. Individual voice dumps, and
-  parameter changes, are much smaller SYSEX messages and should never run into
-  Jack limitations.
 
