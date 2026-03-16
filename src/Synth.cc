@@ -246,6 +246,21 @@ void DX7Synth::queueMidiRx(const uint32_t size, const uint8_t *const buffer) {
 // debug - Ctrl 99 prints EGS trace
 if((buffer[0]&0xF0) == 0xB0 && buffer[1]==99) { dx7.printEGS(); return; }
 
+	// Note-on and note-off events must always travel via the sub-CPU
+	// handshake path (parseMIDI -> toSynth->key_on/off -> HANDLER_IRQ).
+	// That is the only path the firmware monitors for Key Transpose and
+	// other features that capture a key press as data rather than playing
+	// a note.  If these events instead reach the firmware through the MIDI
+	// serial RX ISR (as happens in serial mode, or when the MIDI channel
+	// does not match), the firmware processes them as plain note events
+	// and Key Transpose interception never fires.
+	if(size >= 1) {
+		uint8_t t = buffer[0] & 0xF0;
+		if(t == 0x80 || t == 0x90) {
+			parseMIDI(size, buffer); // routes via sub-CPU handshake
+			return;                  // never also send to serial
+		}
+	}
 	if(serial || !parseMIDI(size, buffer))
 		// Send MIDI to DX7 serial interface
 		for(unsigned i=0; i<size; i++) dx7.midiSerialRx.write(buffer[i]);

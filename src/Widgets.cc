@@ -131,12 +131,18 @@ void Keyboard::Key::draw() {
 
 void Keyboard::Key::click(int x, int y) {
 	XUngrabPointer(display, CurrentTime);
-	on = true; velocity = 127*y/h; send();
+	on = true; velocity = 127*y/h;
+	// velocity 0 is the DX7 key-off sentinel; clamp so any click sends key-on
+	if(velocity == 0) velocity = 1;
+	send();
 }
 
 void Keyboard::Key::enter(unsigned state, int x, int y) {
 	if(! (state&Button1Mask)) return;
-	on = true; velocity = 127*y/h; send();
+	on = true; velocity = 127*y/h;
+	// velocity 0 is the DX7 key-off sentinel; clamp so drag-on sends key-on
+	if(velocity == 0) velocity = 1;
+	send();
 }
 
 void Keyboard::Key::leave(unsigned state) {
